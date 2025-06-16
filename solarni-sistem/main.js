@@ -258,7 +258,6 @@ async function main() {
   let startTime = performance.now();
 
   function render() {
-    const gl = this.gl;
     const currentTime = performance.now();
     const elapsedTime = (currentTime - startTime) * 0.001;
     gl.clearColor(0, 0, 0, 1);
@@ -321,10 +320,6 @@ async function main() {
       // Crtaj planet
       gl.drawElements(gl.TRIANGLES, planetGeometry.indices.length, gl.UNSIGNED_SHORT, 0);
     });
-    
-        gl.uniform3fv(gl.getUniformLocation(this.program, 'uLightPosition'), this.lightPos);
-        gl.uniform3fv(gl.getUniformLocation(this.program, 'uLightColor'), this.lightColor);
-        gl.uniform3fv(gl.getUniformLocation(this.program, 'uViewPosition'), this.cameraPos);
 
     requestAnimationFrame(render);
   }
