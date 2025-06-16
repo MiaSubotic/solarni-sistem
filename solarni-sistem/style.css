@@ -70,3 +70,25 @@ h1 {
 #zoomOut:active {
   background-color: rgb(4, 102, 42);
 }
+
+#naziv_planeta {
+  position: absolute;
+  top: 100px;     
+  left: center;    
+  color: white;
+  background: transparent;
+  padding: 10px;
+  border-radius: 5px;
+  font-size: 30px;
+  font-style: italic, sans-serif;
+}
+
+#opis_planeta {
+  position: absolute;
+  top: center;    
+  right: 100px;      
+  color: white;
+  background: transparent;
+  padding: 10px;
+  border-radius: 5px;
+}

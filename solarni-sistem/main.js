@@ -23,6 +23,8 @@ async function main() {
 
   const vertices = await WebGLUtils.loadOBJ("../shapes/sphere.obj", true);
   const texture = await WebGLUtils.loadTexture(gl, "../shapes/brick.jpg");
+  const naziv_planeta = document.getElementById("naziv_planeta");
+  const opis_planeta = document.getElementById("opis_planeta");
 
   const program = await WebGLUtils.createProgram(gl, "vertex-shader.glsl", "fragment-shader.glsl");
   if (!program) {
@@ -68,7 +70,7 @@ async function main() {
   // Rotacija mišem
   let isDragging = false;
   let isAltView = false;
-  let lastX = 0, lastY = 0;
+  let lastX = 5, lastY = 0;
   let rotationX = 0, rotationY = 0;
   const ROTATION_SPEED = 0.005;
 
@@ -91,15 +93,34 @@ async function main() {
     lastY = e.clientY;
   });
 
-  gl.canvas.addEventListener('click', () => {
-    isAltView = !isAltView;
-    if (isAltView) {
-      cameraPos = [-1, -1, 5]; // pogled odozgo
-    } else {
-      cameraPos = [2, 2, zoom]; // početni pogled
-    }
-  });
+  gl.canvas.addEventListener('click', (e) => {
+  // Koordinate klika
+  const rect = gl.canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
 
+  // Normalizovane koordinate (-1 do 1)
+  const ndcX = (x / gl.canvas.width) * 2 - 1;
+  const ndcY = -((y / gl.canvas.height) * 2 - 1); // y je obrnut
+
+  // Prosta logika: ako je klik blizu centra, tretiraj ga kao klik na planetu
+  const threshold = 0.2;
+  const clickedOnPlanet = Math.abs(ndcX) < threshold && Math.abs(ndcY) < threshold;
+
+  if (clickedOnPlanet) {
+    isAltView = !isAltView;
+
+    if (isAltView && naziv_planeta.style.display === "none" && opis_planeta.style.display === "none") {
+      cameraPos = [-1, -1, 5];
+      naziv_planeta.style.display = "block";
+      opis_planeta.style.display = "block";
+    } else {
+      cameraPos = [2, 2, zoom];
+      naziv_planeta.style.display = "none";
+      opis_planeta.style.display = "none";
+    }
+  }
+});
 
   document.getElementById("zoomIn").addEventListener("click", () => {
     zoom -= 0.5;
@@ -110,7 +131,6 @@ document.getElementById("zoomOut").addEventListener("click", () => {
     zoom += 0.5;
     if (zoom > 20) zoom = 20;
   });
-
 
   function render() {
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
