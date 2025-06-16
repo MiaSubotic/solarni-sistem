@@ -17,7 +17,7 @@ body{
     align-items: center;
     box-sizing: border-box;
 
-};
+}
 
 h1 {
     font-size: 3rem;
@@ -29,44 +29,44 @@ h1 {
     padding: 0;
 }
 
-.dugme {
+#zoomIn {
   position: absolute;
-    bottom: 20px;
-    right: 20px;
-  background-color: #4CAF50;      /* Zelena boja */
-  color: white;                   /* Boja teksta */
-  padding: 12px 24px;             /* Unutrašnji razmak */
-  border: none;                   /* Bez ivice */
-  border-radius: 8px;             /* Zaobljeni uglovi */
-  font-size: 16px;                /* Veličina fonta */
-  cursor: pointer;                /* Ruka pokazivač */
+  bottom: 20px;
+  right: 20px;
+  background-color: #4CAF50;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
   transition: background-color 0.3s ease;
 }
 
-.dugme:hover {
-  background-color: #45a049;      /* Tamnija nijansa zelene kad je miš preko */
+#zoomIn:hover {
+  background-color: #45a049;
 }
-.dugme:active {
-    background-color: blue;
+#zoomIn:active {
+  background-color: rgb(4, 102, 42);
 }
 
-.dugme2 {
+#zoomOut {
   position: absolute;
-    bottom: 20px;
-    left: 20px;
-  background-color: #4CAF50;      /* Zelena boja */
-  color: white;                   /* Boja teksta */
-  padding: 12px 24px;             /* Unutrašnji razmak */
-  border: none;                   /* Bez ivice */
-  border-radius: 8px;             /* Zaobljeni uglovi */
-  font-size: 16px;                /* Veličina fonta */
-  cursor: pointer;                /* Ruka pokazivač */
+  bottom: 20px;
+  left: 20px;
+  background-color: #4CAF50;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
   transition: background-color 0.3s ease;
 }
 
-.dugme2:hover {
-  background-color: #45a049;      /* Tamnija nijansa zelene kad je miš preko */
+#zoomOut:hover {
+  background-color: #45a049;
 }
-.dugme2:active {
-    background-color: blue;
+#zoomOut:active {
+  background-color: rgb(4, 102, 42);
 }
