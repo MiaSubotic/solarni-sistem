@@ -1,7 +1,7 @@
 import { mat4 } from "https://cdn.jsdelivr.net/npm/gl-matrix@3.4.0/+esm";
 import WebGLUtils from "../WebGLUtils.js";
 
-
+// Kreiranje sfere (proceduralno)
 function createSphere(radius, latitudeBands, longitudeBands) {
   const positions = [];
   const texCoords = [];
@@ -41,7 +41,6 @@ function createOrbit(radius, segments) {
   }
   return new Float32Array(positions);
 }
-
 
 const planets = [
   {
@@ -126,7 +125,35 @@ async function main() {
     return;
   }
 
-  
+  // UI Elementi
+  const zoomInBtn = document.getElementById('zoom-in');
+  const zoomOutBtn = document.getElementById('zoom-out');
+  const planetInfo = document.getElementById('planet-info');
+  let selectedPlanet = null;
+
+  // Zoom kontrola
+  zoomInBtn.addEventListener('click', () => {
+    distance *= 0.9;
+    distance = Math.max(3, Math.min(30, distance));
+  });
+
+  zoomOutBtn.addEventListener('click', () => {
+    distance *= 1.1;
+    distance = Math.max(3, Math.min(30, distance));
+  });
+
+  function selectPlanet(planetName) {
+    selectedPlanet = planetName;
+    const planet = planets.find(p => p.name === planetName);
+    if (planet) {
+      planetInfo.innerHTML = `
+        <h3>${planet.name}</h3>
+        <p>Orbit Radius: ${planet.orbitRadius} AU</p>
+        <p>Orbital Speed: ${planet.speed}</p>
+      `;
+    }
+  }
+
   function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -135,7 +162,7 @@ async function main() {
   window.addEventListener("resize", resizeCanvas);
   resizeCanvas();
 
-  
+  // Geometrija
   const sunGeometry = createSphere(0.8, 40, 40);
   const planetGeometry = createSphere(0.15, 30, 30);
 
@@ -145,21 +172,22 @@ async function main() {
     orbitData[planet.name] = createOrbit(planet.orbitRadius, orbitSegments);
   });
 
-  
+  // Shader program
   const program = await WebGLUtils.createProgram(gl, "vertex-shader.glsl", "fragment-shader.glsl");
   gl.useProgram(program);
 
-
+  // Učitavanje tekstura
   const sunTexture = await WebGLUtils.loadTexture(gl, "../textures/sun.jpg");
   const planetTextures = await Promise.all(
     planets.map(planet => WebGLUtils.loadTexture(gl, planet.texture))
   );
 
-  
+  // VAO za Sunce
   const sunVAO = gl.createVertexArray();
   gl.bindVertexArray(sunVAO);
 
-  
+  // ... (zadržati originalni kod za VAO/VBO/IBO za sunce, planete i orbite) ...
+
   const sunVBO = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, sunVBO);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sunGeometry.positions), gl.STATIC_DRAW);
@@ -209,20 +237,22 @@ async function main() {
   gl.enableVertexAttribArray(a_position);
   gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, 0, 0);
 
-  
+
+  // Matrice
   const modelMatrix = mat4.create();
   const viewMatrix = mat4.create();
   const projectionMatrix = mat4.create();
 
-  
   mat4.lookAt(viewMatrix, [0, 0, 10], [0, 0, 0], [0, 1, 0]);
   mat4.perspective(projectionMatrix, Math.PI / 4.5, canvas.width / canvas.height, 0.1, 100);
 
+  // Uniform lokacije
   const u_model = gl.getUniformLocation(program, "u_model");
   const u_view = gl.getUniformLocation(program, "u_view");
   const u_projection = gl.getUniformLocation(program, "u_projection");
   const u_sampler = gl.getUniformLocation(program, "u_sampler");
   const u_color = gl.getUniformLocation(program, "u_color");
+  const u_selected = gl.getUniformLocation(program, "u_selected");
 
   // Kamera kontrola
   let angleX = 0;
@@ -236,8 +266,10 @@ async function main() {
     lastX = e.clientX;
     lastY = e.clientY;
   });
+
   canvas.addEventListener("mouseup", () => (isDragging = false));
   canvas.addEventListener("mouseleave", () => (isDragging = false));
+
   canvas.addEventListener("mousemove", (e) => {
     if (!isDragging) return;
     const dx = e.clientX - lastX;
@@ -255,6 +287,25 @@ async function main() {
     e.preventDefault();
   });
 
+  // Detekcija klika na planetu
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Pojednostavljena detekcija - možete implementirati precizniju
+    const pickedPlanet = detectPlanetAtPosition(x, y);
+    if (pickedPlanet) {
+      selectPlanet(pickedPlanet.name);
+    }
+  });
+
+  function detectPlanetAtPosition(x, y) {
+    // TODO: Implementirati pravu detekciju planeta
+    // Za sada vraća null
+    return null;
+  }
+
   let startTime = performance.now();
 
   function render() {
@@ -264,7 +315,7 @@ async function main() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
 
-    
+    // Update view matrix
     const view = mat4.clone(viewMatrix);
     mat4.translate(view, view, [0, 0, -distance]);
     mat4.rotateX(view, view, angleX);
@@ -272,7 +323,7 @@ async function main() {
     gl.uniformMatrix4fv(u_view, false, view);
     gl.uniformMatrix4fv(u_projection, false, projectionMatrix);
 
-    
+    // Crtanje Sunca
     gl.bindVertexArray(sunVAO);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, sunTexture);
@@ -285,7 +336,7 @@ async function main() {
     gl.uniformMatrix4fv(u_model, false, sunModel);
     gl.drawElements(gl.TRIANGLES, sunGeometry.indices.length, gl.UNSIGNED_SHORT, 0);
 
-    
+    // Crtanje orbita
     gl.bindVertexArray(orbitVAO);
     gl.disable(gl.DEPTH_TEST);
     planets.forEach(planet => {
@@ -297,27 +348,24 @@ async function main() {
     });
     gl.enable(gl.DEPTH_TEST);
 
-    
+    // Crtanje planeta
     gl.bindVertexArray(planetVAO);
     planets.forEach((planet, i) => {
-      // Izračun pozicije planeta
       const angle = planet.speed * elapsedTime;
       const x = planet.orbitRadius * Math.cos(angle);
       const z = planet.orbitRadius * Math.sin(angle);
 
-      
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, planetTextures[i]);
       gl.uniform1i(u_sampler, 0);
       gl.uniform4fv(u_color, [...planet.color, 1]);
+      gl.uniform1i(u_selected, planet.name === selectedPlanet ? 1 : 0);
 
-      
       const planetModel = mat4.create();
       mat4.translate(planetModel, planetModel, [x, 0, z]);
       mat4.scale(planetModel, planetModel, [planet.radius, planet.radius, planet.radius]);
       gl.uniformMatrix4fv(u_model, false, planetModel);
 
-      
       gl.drawElements(gl.TRIANGLES, planetGeometry.indices.length, gl.UNSIGNED_SHORT, 0);
     });
 

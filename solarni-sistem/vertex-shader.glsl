@@ -1,4 +1,3 @@
-#version 300 es
 precision highp float;
 
 in vec3 in_position;
@@ -12,5 +11,11 @@ out vec2 v_texcoord;
 
 void main() {
     v_texcoord = in_texcoord;
-    gl_Position = u_projection * u_view * u_model * vec4(in_position, 1.0);
+    
+    // Kombinirana matrica transformacija (slično kao u saradnikovoj verziji, ali razdvojena)
+    mat4 mvp = u_projection * u_view * u_model;
+    gl_Position = mvp * vec4(in_position, 1.0);
+    
+    // Alternativno možete koristiti i oblik iz HEAD verzije:
+    // gl_Position = u_projection * u_view * u_model * vec4(in_position, 1.0);
 }
