@@ -74,21 +74,27 @@ h1 {
 #naziv_planeta {
   position: absolute;
   top: 100px;     
-  left: center;    
+  left: 50%;
+  transform: translateX(-50%);
   color: white;
   background: transparent;
   padding: 10px;
   border-radius: 5px;
   font-size: 30px;
-  font-style: italic, sans-serif;
+  font-style: italic;
+  pointer-events: none;
 }
 
 #opis_planeta {
   position: absolute;
-  top: center;    
-  right: 100px;      
+  top: 50%;
+  right: 100px;
+  transform: translateY(-50%);
   color: white;
   background: transparent;
   padding: 10px;
   border-radius: 5px;
+  text-align: left;
+  pointer-events: none;
 }
+
