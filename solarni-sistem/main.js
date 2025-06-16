@@ -1,7 +1,7 @@
 import { mat4 } from "https://cdn.jsdelivr.net/npm/gl-matrix@3.4.0/+esm";
 import WebGLUtils from "../WebGLUtils.js";
 
-// Kreiranje sfere (proceduralno)
+
 function createSphere(radius, latitudeBands, longitudeBands) {
   const positions = [];
   const texCoords = [];
@@ -42,7 +42,7 @@ function createOrbit(radius, segments) {
   return new Float32Array(positions);
 }
 
-// Definicija planeta
+
 const planets = [
   {
     name: "Merkur",
@@ -126,7 +126,7 @@ async function main() {
     return;
   }
 
-  // Resize funkcija
+  
   function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -135,7 +135,7 @@ async function main() {
   window.addEventListener("resize", resizeCanvas);
   resizeCanvas();
 
-  // KREIRANJE SFERA
+  
   const sunGeometry = createSphere(0.8, 40, 40);
   const planetGeometry = createSphere(0.15, 30, 30);
 
@@ -145,21 +145,21 @@ async function main() {
     orbitData[planet.name] = createOrbit(planet.orbitRadius, orbitSegments);
   });
 
-  // Shader program
+  
   const program = await WebGLUtils.createProgram(gl, "vertex-shader.glsl", "fragment-shader.glsl");
   gl.useProgram(program);
 
-  // Učitavanje tekstura
+
   const sunTexture = await WebGLUtils.loadTexture(gl, "../textures/sun.jpg");
   const planetTextures = await Promise.all(
     planets.map(planet => WebGLUtils.loadTexture(gl, planet.texture))
   );
 
-  // VAO za Sunce
+  
   const sunVAO = gl.createVertexArray();
   gl.bindVertexArray(sunVAO);
 
-  // VBO - positions
+  
   const sunVBO = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, sunVBO);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sunGeometry.positions), gl.STATIC_DRAW);
@@ -167,7 +167,7 @@ async function main() {
   gl.enableVertexAttribArray(a_position);
   gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, 0, 0);
 
-  // VBO - texCoords
+  
   const sunTBO = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, sunTBO);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sunGeometry.texCoords), gl.STATIC_DRAW);
@@ -175,12 +175,12 @@ async function main() {
   gl.enableVertexAttribArray(a_texCoord);
   gl.vertexAttribPointer(a_texCoord, 2, gl.FLOAT, false, 0, 0);
 
-  // IBO
+  
   const sunIBO = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sunIBO);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(sunGeometry.indices), gl.STATIC_DRAW);
 
-  // VAO za planete
+  
   const planetVAO = gl.createVertexArray();
   gl.bindVertexArray(planetVAO);
 
@@ -200,7 +200,7 @@ async function main() {
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, planetIBO);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(planetGeometry.indices), gl.STATIC_DRAW);
 
-  // VAO za orbite
+  
   const orbitVAO = gl.createVertexArray();
   gl.bindVertexArray(orbitVAO);
 
@@ -209,12 +209,12 @@ async function main() {
   gl.enableVertexAttribArray(a_position);
   gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, 0, 0);
 
-  // Matrice
+  
   const modelMatrix = mat4.create();
   const viewMatrix = mat4.create();
   const projectionMatrix = mat4.create();
 
-  // Postavi početni pogled malo odozgo
+  
   mat4.lookAt(viewMatrix, [0, 0, 10], [0, 0, 0], [0, 1, 0]);
   mat4.perspective(projectionMatrix, Math.PI / 4.5, canvas.width / canvas.height, 0.1, 100);
 
@@ -264,7 +264,7 @@ async function main() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
 
-    // Update view matrix
+    
     const view = mat4.clone(viewMatrix);
     mat4.translate(view, view, [0, 0, -distance]);
     mat4.rotateX(view, view, angleX);
@@ -272,7 +272,7 @@ async function main() {
     gl.uniformMatrix4fv(u_view, false, view);
     gl.uniformMatrix4fv(u_projection, false, projectionMatrix);
 
-    // Crtanje Sunca
+    
     gl.bindVertexArray(sunVAO);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, sunTexture);
@@ -285,7 +285,7 @@ async function main() {
     gl.uniformMatrix4fv(u_model, false, sunModel);
     gl.drawElements(gl.TRIANGLES, sunGeometry.indices.length, gl.UNSIGNED_SHORT, 0);
 
-    // Crtanje orbita
+    
     gl.bindVertexArray(orbitVAO);
     gl.disable(gl.DEPTH_TEST);
     planets.forEach(planet => {
@@ -297,7 +297,7 @@ async function main() {
     });
     gl.enable(gl.DEPTH_TEST);
 
-    // Crtanje planeta
+    
     gl.bindVertexArray(planetVAO);
     planets.forEach((planet, i) => {
       // Izračun pozicije planeta
@@ -305,19 +305,19 @@ async function main() {
       const x = planet.orbitRadius * Math.cos(angle);
       const z = planet.orbitRadius * Math.sin(angle);
 
-      // Postavi teksturu i boju
+      
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, planetTextures[i]);
       gl.uniform1i(u_sampler, 0);
       gl.uniform4fv(u_color, [...planet.color, 1]);
 
-      // Postavi model matricu
+      
       const planetModel = mat4.create();
       mat4.translate(planetModel, planetModel, [x, 0, z]);
       mat4.scale(planetModel, planetModel, [planet.radius, planet.radius, planet.radius]);
       gl.uniformMatrix4fv(u_model, false, planetModel);
 
-      // Crtaj planet
+      
       gl.drawElements(gl.TRIANGLES, planetGeometry.indices.length, gl.UNSIGNED_SHORT, 0);
     });
 
