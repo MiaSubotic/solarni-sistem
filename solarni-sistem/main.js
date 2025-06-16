@@ -236,6 +236,7 @@ async function main() {
 
   let startTime = performance.now();
 
+
   function render() {
     const currentTime = performance.now();
     const elapsedTime = (currentTime - startTime) * 0.001;
@@ -261,6 +262,7 @@ async function main() {
     gl.uniform4fv(u_color, [1, 1, 1, 1]);
     
     const sunModel = mat4.create();
+    mat4.rotateY(sunModel, sunModel, elapsedTime * 0.5); 
     mat4.scale(sunModel, sunModel, [1.6, 1.6, 1.6]);  
     gl.uniformMatrix4fv(u_model, false, sunModel);
     gl.drawElements(gl.TRIANGLES, sunGeometry.indices.length, gl.UNSIGNED_SHORT, 0);
@@ -284,6 +286,7 @@ async function main() {
       mat4.translate(planetModel, planetModel, [x, 0, z]);
       mat4.scale(planetModel, planetModel, [planet.radius, planet.radius, planet.radius]);
       gl.uniformMatrix4fv(u_model, false, planetModel);
+
 
       // Crtaj planet
       gl.drawElements(gl.TRIANGLES, planetGeometry.indices.length, gl.UNSIGNED_SHORT, 0);
