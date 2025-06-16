@@ -67,6 +67,7 @@ async function main() {
 
   // Rotacija mišem
   let isDragging = false;
+  let isAltView = false;
   let lastX = 0, lastY = 0;
   let rotationX = 0, rotationY = 0;
   const ROTATION_SPEED = 0.005;
@@ -90,16 +91,15 @@ async function main() {
     lastY = e.clientY;
   });
 
-  // Zumiranje tastaturom
-  document.addEventListener('keydown', (event) => {
-    if (event.key === '+' || event.key === '=' || event.key === 'w') {
-      zoom -= 0.2;
-      if (zoom < 1.5) zoom = 1.5;
-    } else if (event.key === '-' || event.key === '_' || event.key === 's') {
-      zoom += 0.2;
-      if (zoom > 20) zoom = 20;
+  gl.canvas.addEventListener('click', () => {
+    isAltView = !isAltView;
+    if (isAltView) {
+      cameraPos = [-1, -1, 5]; // pogled odozgo
+    } else {
+      cameraPos = [2, 2, zoom]; // početni pogled
     }
   });
+
 
   document.getElementById("zoomIn").addEventListener("click", () => {
     zoom -= 0.5;
