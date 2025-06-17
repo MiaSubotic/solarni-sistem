@@ -1,14 +1,23 @@
 #version 300 es
-precision mediump float;
+precision highp float;
 
-in vec3 v_normal;
-in vec2 v_uv;
+in vec2 v_texcoord;
+uniform sampler2D u_sampler;
+uniform vec4 u_color;
+uniform int u_selected;
 
-uniform sampler2D u_texture;
-
-out vec4 out_color;
+out vec4 outColor;
 
 void main() {
-    vec3 color = texture(u_texture, v_uv).rgb;
-    out_color = vec4(color, 1.0);
+    outColor = texture(u_sampler, v_texcoord) * u_color;
+
+    if (u_selected == 1) {
+        // Neka svetli malo jače
+        outColor.rgb *= 1.5;
+        
+        // Dodajte svetleći obrub
+        float edge = smoothstep(0.4, 0.5, 
+            max(abs(v_texcoord.x - 0.5), abs(v_texcoord.y - 0.5)));
+        outColor.rgb = mix(outColor.rgb, vec3(1.0), edge);
+    }
 }
