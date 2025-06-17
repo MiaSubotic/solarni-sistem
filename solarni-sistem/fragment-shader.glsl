@@ -1,11 +1,13 @@
 #version 300 es
 precision highp float;
+
 in vec2 v_texcoord;
 uniform sampler2D u_sampler;
 uniform vec4 u_color;
 uniform int u_selected;
 uniform int u_is_planet;
 uniform int u_is_sun;
+
 out vec4 fragColor;
 
 void main() {
