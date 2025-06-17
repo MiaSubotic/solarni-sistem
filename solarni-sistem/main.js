@@ -1,4 +1,4 @@
-import { mat4 } from "https://cdn.jsdelivr.net/npm/gl-matrix@3.4.0/+esm";
+import { mat4, vec4 } from "https://cdn.jsdelivr.net/npm/gl-matrix@3.4.0/+esm";
 import WebGLUtils from "../WebGLUtils.js";
 
 // Kreiranje sfere (proceduralno)
@@ -43,93 +43,100 @@ function createOrbit(radius, segments) {
 }
 
 const planets = [
-  {
-    name: "Merkur",
-    radius: 0.95,
-    orbitRadius: 2.0,
-    speed: 1.2,
-    color: [0.7, 0.5, 0.4],
-    orbitColor: [0.7, 0.5, 0.4, 0.3],
-    texture: "../textures/mercury.jpg"
-  },
-  {
-    name: "Venera",
-    radius: 1.02,
-    orbitRadius: 2.5,
-    speed: 0.8,
-    color: [0.9, 0.7, 0.3],
-    orbitColor: [0.9, 0.7, 0.3, 0.3],
-    texture: "../textures/venus.jpg"
-  },
-  {
-    name: "Zemlja",
-    radius: 1.05,
-    orbitRadius: 3.3,
-    speed: 0.6,
-    color: [0.2, 0.4, 0.8],
-    orbitColor: [0.2, 0.4, 0.8, 0.3],
-    texture: "../textures/earth.webp"
-  },
-  {
-    name: "Mars",
-    radius: 1.0,
-    orbitRadius: 4.0,
-    speed: 0.45,
-    color: [0.9, 0.2, 0.1],
-    orbitColor: [0.9, 0.2, 0.1, 0.3],
-    texture: "../textures/mars.jpg"
-  },
-  {
-    name: "Jupiter",
-    radius: 1.2,
-    orbitRadius: 5.0,
-    speed: 0.3,
-    color: [0.8, 0.6, 0.4],
-    orbitColor: [0.8, 0.6, 0.4, 0.3],
-    texture: "../textures/jupitermap.jpg"
-  },
-  {
-    name: "Saturn",
-    radius: 1.15,
-    orbitRadius: 6.0,
-    speed: 0.25,
-    color: [0.9, 0.8, 0.5],
-    orbitColor: [0.9, 0.8, 0.5, 0.3],
-    texture: "../textures/saturnmap.jpg"
-  },
-  {
-    name: "Uran",
-    radius: 2.0,
-    orbitRadius: 6.8,
-    speed: 0.15,
-    color: [0.6, 0.8, 0.9],
-    orbitColor: [0.6, 0.8, 0.9, 0.3],
-    texture: "../textures/uranus.jpg"
-  },
-  {
-    name: "Neptun",
-    radius: 2.0,
-    orbitRadius: 7.5,
-    speed: 0.1,
-    color: [0.2, 0.3, 0.9],
-    orbitColor: [0.2, 0.3, 0.9, 0.3],
-    texture: "../textures/neptune.jpg"
-  }
+  {
+    name: "Merkur",
+    radius: 0.95,
+    orbitRadius: 2.0,
+    speed: 1.2,
+    color: [0.7, 0.5, 0.4],
+    orbitColor: [0.7, 0.5, 0.4, 0.3],
+    texture: "../textures/mercury.jpg"
+  },
+  {
+    name: "Venera",
+    radius: 1.02,
+    orbitRadius: 2.5,
+    speed: 0.8,
+    color: [0.9, 0.7, 0.3],
+    orbitColor: [0.9, 0.7, 0.3, 0.3],
+    texture: "../textures/venus.jpg"
+  },
+  {
+    name: "Zemlja",
+    radius: 1.05,
+    orbitRadius: 3.3,
+    speed: 0.6,
+    color: [0.2, 0.4, 0.8],
+    orbitColor: [0.2, 0.4, 0.8, 0.3],
+    texture: "../textures/earth.webp"
+  },
+  {
+    name: "Mars",
+    radius: 1.0,
+    orbitRadius: 4.0,
+    speed: 0.45,
+    color: [0.9, 0.2, 0.1],
+    orbitColor: [0.9, 0.2, 0.1, 0.3],
+    texture: "../textures/mars.jpg"
+  },
+  {
+    name: "Jupiter",
+    radius: 1.2,
+    orbitRadius: 5.0,
+    speed: 0.3,
+    color: [0.8, 0.6, 0.4],
+    orbitColor: [0.8, 0.6, 0.4, 0.3],
+    texture: "../textures/jupitermap.jpg"
+  },
+  {
+    name: "Saturn",
+    radius: 1.15,
+    orbitRadius: 6.0,
+    speed: 0.25,
+    color: [0.9, 0.8, 0.5],
+    orbitColor: [0.9, 0.8, 0.5, 0.3],
+    texture: "../textures/saturnmap.jpg"
+  },
+  {
+    name: "Uran",
+    radius: 2.0,
+    orbitRadius: 6.8,
+    speed: 0.15,
+    color: [0.6, 0.8, 0.9],
+    orbitColor: [0.6, 0.8, 0.9, 0.3],
+    texture: "../textures/uranus.jpg"
+  },
+  {
+    name: "Neptun",
+    radius: 2.0,
+    orbitRadius: 7.5,
+    speed: 0.1,
+    color: [0.2, 0.3, 0.9],
+    orbitColor: [0.2, 0.3, 0.9, 0.3],
+    texture: "../textures/neptune.jpg"
+  }
 ];
+
 
 async function main() {
   const canvas = document.getElementById("glcanvas");
-  const gl = canvas.getContext("webgl2");
-  if (!gl) {
-    alert("WebGL2 nije podržan");
-    return;
-  }
+  if (!canvas) throw new Error("Canvas element not found");
+
+  const gl = canvas.getContext("webgl2", { antialias: true });
+  if (!gl) throw new Error("WebGL2 nije podržan");
 
   // UI Elementi
+  const loadingElement = document.getElementById('loading');
   const zoomInBtn = document.getElementById('zoom-in');
   const zoomOutBtn = document.getElementById('zoom-out');
   const planetInfo = document.getElementById('planet-info');
+
   let selectedPlanet = null;
+  let distance = 5;
+  let angleX = 0;
+  let angleY = 0;
+  let isDragging = false;
+  let lastX, lastY;
 
   // Zoom kontrola
   zoomInBtn.addEventListener('click', () => {
@@ -142,16 +149,13 @@ async function main() {
     distance = Math.max(3, Math.min(30, distance));
   });
 
-  function selectPlanet(planetName) {
-    selectedPlanet = planetName;
-    const planet = planets.find(p => p.name === planetName);
-    if (planet) {
-      planetInfo.innerHTML = `
-        <h3>${planet.name}</h3>
-        <p>Orbit Radius: ${planet.orbitRadius} AU</p>
-        <p>Orbital Speed: ${planet.speed}</p>
-      `;
-    }
+  function updatePlanetInfo(planet) {
+    if (!planetInfo) return;
+    planetInfo.innerHTML = `
+      <h3>${planet.name}</h3>
+      <p>Orbit Radius: ${planet.orbitRadius} AU</p>
+      <p>Orbital Speed: ${planet.speed}</p>
+    `;
   }
 
   function resizeCanvas() {
@@ -186,8 +190,6 @@ async function main() {
   const sunVAO = gl.createVertexArray();
   gl.bindVertexArray(sunVAO);
 
-  // ... (zadržati originalni kod za VAO/VBO/IBO za sunce, planete i orbite) ...
-
   const sunVBO = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, sunVBO);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sunGeometry.positions), gl.STATIC_DRAW);
@@ -195,7 +197,6 @@ async function main() {
   gl.enableVertexAttribArray(a_position);
   gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, 0, 0);
 
-  
   const sunTBO = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, sunTBO);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sunGeometry.texCoords), gl.STATIC_DRAW);
@@ -203,12 +204,11 @@ async function main() {
   gl.enableVertexAttribArray(a_texCoord);
   gl.vertexAttribPointer(a_texCoord, 2, gl.FLOAT, false, 0, 0);
 
-  
   const sunIBO = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sunIBO);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(sunGeometry.indices), gl.STATIC_DRAW);
 
-  
+  // VAO za planete
   const planetVAO = gl.createVertexArray();
   gl.bindVertexArray(planetVAO);
 
@@ -228,7 +228,7 @@ async function main() {
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, planetIBO);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(planetGeometry.indices), gl.STATIC_DRAW);
 
-  
+  // VAO za orbite
   const orbitVAO = gl.createVertexArray();
   gl.bindVertexArray(orbitVAO);
 
@@ -237,12 +237,9 @@ async function main() {
   gl.enableVertexAttribArray(a_position);
   gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, 0, 0);
 
-
   // Matrice
-  const modelMatrix = mat4.create();
   const viewMatrix = mat4.create();
   const projectionMatrix = mat4.create();
-
   mat4.lookAt(viewMatrix, [0, 0, 10], [0, 0, 0], [0, 1, 0]);
   mat4.perspective(projectionMatrix, Math.PI / 4.5, canvas.width / canvas.height, 0.1, 100);
 
@@ -254,13 +251,7 @@ async function main() {
   const u_color = gl.getUniformLocation(program, "u_color");
   const u_selected = gl.getUniformLocation(program, "u_selected");
 
-  // Kamera kontrola
-  let angleX = 0;
-  let angleY = 0;
-  let distance = 5;
-  let isDragging = false;
-  let lastX, lastY;
-
+  // Event listeners
   canvas.addEventListener("mousedown", (e) => {
     isDragging = true;
     lastX = e.clientX;
@@ -289,25 +280,54 @@ async function main() {
 
   // Detekcija klika na planetu
   canvas.addEventListener('click', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    // Pojednostavljena detekcija - možete implementirati precizniju
-    const pickedPlanet = detectPlanetAtPosition(x, y);
-    if (pickedPlanet) {
-      selectPlanet(pickedPlanet.name);
+    const planet = detectPlanetAtPosition(e.clientX, e.clientY);
+    if (planet) {
+      selectedPlanet = planet.name;
+      updatePlanetInfo(planet);
+    } else {
+      selectedPlanet = null;
+      if (planetInfo) {
+        planetInfo.innerHTML = '<h3>Solar System</h3><p>Kliknite na planetu</p>';
+      }
     }
   });
 
   function detectPlanetAtPosition(x, y) {
-    // TODO: Implementirati pravu detekciju planeta
-    // Za sada vraća null
+    const rect = canvas.getBoundingClientRect();
+    const pixelX = x - rect.left;
+    const pixelY = y - rect.top;
+    
+    const glX = (pixelX / canvas.width) * 2 - 1;
+    const glY = 1 - (pixelY / canvas.height) * 2;
+
+    for (let i = 0; i < planets.length; i++) {
+      const planet = planets[i];
+      const angle = planet.speed * (performance.now() - startTime) * 0.001;
+      const planetX = planet.orbitRadius * Math.cos(angle);
+      const planetZ = planet.orbitRadius * Math.sin(angle);
+      
+      const planetPos = vec4.fromValues(planetX, 0, planetZ, 1);
+      vec4.transformMat4(planetPos, planetPos, viewMatrix);
+      vec4.transformMat4(planetPos, planetPos, projectionMatrix);
+      
+      const planetXNDC = planetPos[0] / planetPos[3];
+      const planetYNDC = planetPos[1] / planetPos[3];
+      
+      const distance = Math.sqrt(
+        Math.pow(glX - planetXNDC, 2) + 
+        Math.pow(glY - planetYNDC, 2)
+      );
+
+      if (distance < 0.05) {
+        return planet;
+      }
+    }
     return null;
   }
 
   let startTime = performance.now();
-
+  if (loadingElement) loadingElement.style.display = 'none';
+  
   function render() {
     const currentTime = performance.now();
     const elapsedTime = (currentTime - startTime) * 0.001;
