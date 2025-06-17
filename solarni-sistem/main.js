@@ -325,13 +325,13 @@ async function main() {
     if (planet) {
       if (selectedPlanet === planet.name) {
         // Ako je već selektovana, prestani da pratiš
-        followPlanet = false;
+        
         selectedPlanet = null;
         document.getElementById("planet-info").style.display = 'none';
       } else {
         // Prati novu planetu
-        followPlanet = true;
         selectedPlanet = planet.name;
+        followPlanet = false;
         updatePlanetInfo(planet);
       }
     } else {
