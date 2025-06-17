@@ -1,163 +1,439 @@
-/* Example: 06-phong
- * Rotating a 3D model with Phong shading
- * Mouse dragging and callbacks are used to rotate the model.
- * Added zoom with keyboard.
- */
+import { mat4, vec4 } from "https://cdn.jsdelivr.net/npm/gl-matrix@3.4.0/+esm";
+import WebGLUtils from "../WebGLUtils.js";
 
-import { mat4, vec3 } from 'https://cdn.jsdelivr.net/npm/gl-matrix@3.4.0/+esm';
-import WebGLUtils from '../WebGLUtils.js';
+// Kreiranje sfere (proceduralno)
+function createSphere(radius, latitudeBands, longitudeBands) {
+  const positions = [];
+  const texCoords = [];
+  const indices = [];
+  
+  for (let lat = 0; lat <= latitudeBands; ++lat) {
+    const theta = lat * Math.PI / latitudeBands;
+    const sinTheta = Math.sin(theta);
+    const cosTheta = Math.cos(theta);
+    for (let lon = 0; lon <= longitudeBands; ++lon) {
+      const phi = lon * 2 * Math.PI / longitudeBands;
+      const sinPhi = Math.sin(phi);
+      const cosPhi = Math.cos(phi);
+      const x = cosPhi * sinTheta;
+      const y = cosTheta;
+      const z = sinPhi * sinTheta;
+      positions.push(radius * x, radius * y, radius * z);
+      texCoords.push(lon / longitudeBands, lat / latitudeBands);
+    }
+  }
+  for (let lat = 0; lat < latitudeBands; ++lat) {
+    for (let lon = 0; lon < longitudeBands; ++lon) {
+      const first = (lat * (longitudeBands + 1)) + lon;
+      const second = first + longitudeBands + 1;
+      indices.push(first, second, first + 1);
+      indices.push(second, second + 1, first + 1);
+    }
+  }
+  return { positions, texCoords, indices };
+}
+
+function createOrbit(radius, segments) {
+  const positions = [];
+  for (let i = 0; i <= segments; i++) {
+    const angle = (i / segments) * Math.PI * 2;
+    positions.push(radius * Math.cos(angle), 0, radius * Math.sin(angle));
+  }
+  return new Float32Array(positions);
+}
+
+const planets = [
+  {
+    name: "Mercury",
+    radius: 0.95,
+    orbitRadius: 2.0,
+    speed: 1.2,
+    color: [0.7, 0.5, 0.4],
+    orbitColor: [0.7, 0.5, 0.4, 0.3],
+    texture: "../tekstura/merkurtekstura.jpg"
+  },
+  {
+    name: "Venus",
+    radius: 1.02,
+    orbitRadius: 2.5,
+    speed: 0.8,
+    color: [0.9, 0.7, 0.3],
+    orbitColor: [0.9, 0.7, 0.3, 0.3],
+    texture: "../tekstura/veneratekstura.jpg"
+  },
+  {
+    name: "Earth",
+    radius: 1.05,
+    orbitRadius: 3.3,
+    speed: 0.6,
+    color: [0.2, 0.4, 0.8],
+    orbitColor: [0.2, 0.4, 0.8, 0.3],
+    texture: "../tekstura/zemljatekstura.jpg"
+  },
+  {
+    name: "Mars",
+    radius: 1.0,
+    orbitRadius: 4.0,
+    speed: 0.45,
+    color: [0.9, 0.2, 0.1],
+    orbitColor: [0.9, 0.2, 0.1, 0.3],
+    texture: "../tekstura/marstekstura.jpg"
+  },
+  {
+    name: "Jupiter",
+    radius: 1.2,
+    orbitRadius: 5.0,
+    speed: 0.3,
+    color: [0.8, 0.6, 0.4],
+    orbitColor: [0.8, 0.6, 0.4, 0.3],
+    texture: "../tekstura/jupitertekstura.jpg"
+  },
+  {
+    name: "Saturn",
+    radius: 1.15,
+    orbitRadius: 6.0,
+    speed: 0.25,
+    color: [0.9, 0.8, 0.5],
+    orbitColor: [0.9, 0.8, 0.5, 0.3],
+    texture: "../tekstura/saturn.jpg"
+  },
+  {
+    name: "Uranus",
+    radius: 2.0,
+    orbitRadius: 6.8,
+    speed: 0.15,
+    color: [0.6, 0.8, 0.9],
+    orbitColor: [0.6, 0.8, 0.9, 0.3],
+    texture: "../tekstura/uran.jpg"
+  },
+  {
+    name: "Neptune",
+    radius: 2.0,
+    orbitRadius: 7.5,
+    speed: 0.1,
+    color: [0.2, 0.3, 0.9],
+    orbitColor: [0.2, 0.3, 0.9, 0.3],
+    texture: "../tekstura/neptun.jpg"
+  }
+];
+
+
+let currentViewMatrix = mat4.create(); // ažuriraće se svaki frame
+
 
 async function main() {
-  /** @type {WebGL2RenderingContext} */
-  const gl = WebGLUtils.initWebGL();
-  if (!gl) {
-    console.error("WebGL2 nije podržan.");
-    return;
+  const canvas = document.getElementById("glcanvas");
+  if (!canvas) throw new Error("Canvas element not found");
+
+  const gl = canvas.getContext("webgl2", { antialias: true });
+  if (!gl) throw new Error("WebGL2 nije podržan");
+
+  // UI Elementi
+  const loadingElement = document.getElementById('loading');
+  const zoomInBtn = document.getElementById('zoom-in');
+  const zoomOutBtn = document.getElementById('zoom-out');
+  const planetInfo = document.getElementById('planet-info');
+
+  let selectedPlanet = null;
+  let followPlanet = false;
+  let cameraOffset = [0, 5, 5];
+  let distance = 5;
+  let angleX = 0;
+  let angleY = 0;
+  let isDragging = false;
+  let lastX, lastY;
+
+  // Zoom kontrola
+  zoomInBtn.addEventListener('click', () => {
+    distance *= 0.9;
+    distance = Math.max(3, Math.min(30, distance));
+  });
+
+  zoomOutBtn.addEventListener('click', () => {
+    distance *= 1.1;
+    distance = Math.max(3, Math.min(30, distance));
+  });
+
+  function updatePlanetInfo(planet) {
+    const panel = document.getElementById("planet-info");
+    if (!panel) return;
+    
+    panel.innerHTML = `
+        <h3>${planet.name}</h3>
+        <p>Orbit Radius: ${planet.orbitRadius} AU</p>
+        <p>Orbital Speed: ${planet.speed.toFixed(2)}</p>
+        <p>Radius: ${planet.radius.toFixed(2)}</p>
+        <button id="follow-btn">${followPlanet ? 'Stop Following' : 'Follow Planet'}</button>
+    `;
+    panel.style.display = 'block';
+    
+    document.getElementById('follow-btn').addEventListener('click', () => {
+        followPlanet = !followPlanet;
+        updatePlanetInfo(planet);
+    });
   }
 
-  gl.enable(gl.DEPTH_TEST);
-  gl.enable(gl.CULL_FACE);
-  gl.cullFace(gl.BACK);
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
 
-  WebGLUtils.resizeCanvasToWindow(gl);
+  // Geometrija
+  const sunGeometry = createSphere(0.8, 40, 40);
+  const planetGeometry = createSphere(0.15, 30, 30);
 
-  const vertices = await WebGLUtils.loadOBJ("../shapes/sphere.obj", true);
-  const texture = await WebGLUtils.loadTexture(gl, "../shapes/brick.jpg");
-  const naziv_planeta = document.getElementById("naziv_planeta");
-  const opis_planeta = document.getElementById("opis_planeta");
+  const orbitSegments = 64;
+  const orbitData = {};
+  planets.forEach(planet => {
+    orbitData[planet.name] = createOrbit(planet.orbitRadius, orbitSegments);
+  });
 
+  // Shader program
   const program = await WebGLUtils.createProgram(gl, "vertex-shader.glsl", "fragment-shader.glsl");
-  if (!program) {
-    console.error("Neuspešno kreiran shader program.");
-    return;
-  }
+  gl.useProgram(program);
 
-  const modelMat = mat4.create();
-  const viewMat = mat4.create();
-  const projectionMat = mat4.create();
-  const mvpMat = mat4.create();
-
-  mat4.perspective(projectionMat, Math.PI / 4, gl.canvas.width / gl.canvas.height, 0.1, 100);
-
-  // Zoom vrednost
-  let zoom = 5;
-  let cameraPos = [2, 2, zoom];
-
-  // Svetlo
-  const lightDir = vec3.fromValues(5.0, 2.0, 1.0);
-  const lightColor = vec3.fromValues(1.0, 1.0, 1.0);    // bela svetlost
-  const ambientColor = vec3.fromValues(0.1, 0.1, 0.1);  // ambijentalno
-
-  vec3.normalize(lightDir, lightDir);
-
-  // Početno slanje uniformi
-  WebGLUtils.setUniformMatrix4fv(gl, program, ["u_projection"], [projectionMat]);
-  WebGLUtils.setUniform3f(gl, program,
-    ["u_ambient_color", "u_light_direction", "u_light_color"],
-    [ambientColor, lightDir, lightColor]
+  // Učitavanje tekstura
+  const sunTexture = await WebGLUtils.loadTexture(gl, "../tekstura/suncetekstura.jpg");
+  const planetTextures = await Promise.all(
+    planets.map(planet => WebGLUtils.loadTexture(gl, planet.texture))
   );
 
-  gl.useProgram(program);
-  const textureLoc = gl.getUniformLocation(program, "u_texture");
-  gl.uniform1i(textureLoc, 0);
+  // VAO za Sunce
+  const sunVAO = gl.createVertexArray();
+  gl.bindVertexArray(sunVAO);
 
-  const VAO = WebGLUtils.createVAO(gl, program, vertices, 8, [
-    { name: "in_position", size: 3, offset: 0 },
-    { name: "in_normal", size: 3, offset: 5 },
-    { name: "in_uv", size: 2, offset: 3},
-  ]);
+  const sunVBO = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, sunVBO);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sunGeometry.positions), gl.STATIC_DRAW);
+  const a_position = gl.getAttribLocation(program, "in_position");
+  gl.enableVertexAttribArray(a_position);
+  gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, 0, 0);
 
-  // Rotacija mišem
-  let isDragging = false;
-  let isAltView = false;
-  let lastX = 5, lastY = 0;
-  let rotationX = 0, rotationY = 0;
-  const ROTATION_SPEED = 0.005;
+  const sunTBO = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, sunTBO);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sunGeometry.texCoords), gl.STATIC_DRAW);
+  const a_texCoord = gl.getAttribLocation(program, "in_texcoord");
+  gl.enableVertexAttribArray(a_texCoord);
+  gl.vertexAttribPointer(a_texCoord, 2, gl.FLOAT, false, 0, 0);
 
-  gl.canvas.addEventListener('mousedown', (e) => {
+  const sunIBO = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sunIBO);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(sunGeometry.indices), gl.STATIC_DRAW);
+
+  // VAO za planete
+  const planetVAO = gl.createVertexArray();
+  gl.bindVertexArray(planetVAO);
+
+  const planetVBO = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, planetVBO);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(planetGeometry.positions), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(a_position);
+  gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, 0, 0);
+
+  const planetTBO = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, planetTBO);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(planetGeometry.texCoords), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(a_texCoord);
+  gl.vertexAttribPointer(a_texCoord, 2, gl.FLOAT, false, 0, 0);
+
+  const planetIBO = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, planetIBO);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(planetGeometry.indices), gl.STATIC_DRAW);
+
+  // VAO za orbite
+  const orbitVAO = gl.createVertexArray();
+  gl.bindVertexArray(orbitVAO);
+
+  const orbitVBO = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, orbitVBO);
+  gl.enableVertexAttribArray(a_position);
+  gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, 0, 0);
+
+  // Matrice
+  const viewMatrix = mat4.create();
+  const projectionMatrix = mat4.create();
+  mat4.lookAt(viewMatrix, [0, 0, 10], [0, 0, 0], [0, 1, 0]);
+  mat4.perspective(projectionMatrix, Math.PI / 4.5, canvas.width / canvas.height, 0.1, 100);
+
+  // Uniform lokacije
+  const u_model = gl.getUniformLocation(program, "u_model");
+  const u_view = gl.getUniformLocation(program, "u_view");
+  const u_projection = gl.getUniformLocation(program, "u_projection");
+  const u_sampler = gl.getUniformLocation(program, "u_sampler");
+  const u_color = gl.getUniformLocation(program, "u_color");
+  const u_selected = gl.getUniformLocation(program, "u_selected");
+
+  // Event listeners
+  canvas.addEventListener("mousedown", (e) => {
     isDragging = true;
     lastX = e.clientX;
     lastY = e.clientY;
   });
 
-  gl.canvas.addEventListener('mouseup', () => isDragging = false);
-  gl.canvas.addEventListener('mouseleave', () => isDragging = false);
+  canvas.addEventListener("mouseup", () => (isDragging = false));
+  canvas.addEventListener("mouseleave", () => (isDragging = false));
 
-  gl.canvas.addEventListener('mousemove', (e) => {
+  canvas.addEventListener("mousemove", (e) => {
     if (!isDragging) return;
-    const deltaX = e.clientX - lastX;
-    const deltaY = e.clientY - lastY;
-    rotationY += deltaX * ROTATION_SPEED;
-    rotationX += deltaY * ROTATION_SPEED;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    angleY += dx * 0.01;
+    angleX += dy * 0.01;
+    angleX = Math.max(-Math.PI/2, Math.min(Math.PI/2, angleX));
     lastX = e.clientX;
     lastY = e.clientY;
   });
 
-  gl.canvas.addEventListener('click', (e) => {
-  // Koordinate klika
-  const rect = gl.canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
+  canvas.addEventListener('click', (e) => {
+    const planet = detectPlanetAtPosition(e.clientX, e.clientY);
+    
+    if (planet) {
+        if (selectedPlanet === planet.name) {
+            // Ako je već selektovana, prestani da pratiš
+            followPlanet = false;
+            selectedPlanet = null;
+            document.getElementById("planet-info").style.display = 'none';
+        } else {
+            // Prati novu planetu
+            followPlanet = true;
+            selectedPlanet = planet.name;
+            updatePlanetInfo(planet);
+        }
+      } else {
+        // Klik van planete - resetuj pogled
+        followPlanet = false;
+        selectedPlanet = null;
+        document.getElementById("planet-info").style.display = 'none';
+      }
+    });
 
-  // Normalizovane koordinate (-1 do 1)
-  const ndcX = (x / gl.canvas.width) * 2 - 1;
-  const ndcY = -((y / gl.canvas.height) * 2 - 1); // y je obrnut
+  function detectPlanetAtPosition(x, y) {
+    const rect = canvas.getBoundingClientRect();
+    const pixelX = x - rect.left;
+    const pixelY = y - rect.top;
+    
+    const glX = (pixelX / canvas.width) * 2 - 1;
+    const glY = 1 - (pixelY / canvas.height) * 2;
 
-  // Prosta logika: ako je klik blizu centra, tretiraj ga kao klik na planetu
-  const threshold = 0.2;
-  const clickedOnPlanet = Math.abs(ndcX) < threshold && Math.abs(ndcY) < threshold;
+    for (let i = 0; i < planets.length; i++) {
+      const planet = planets[i];
+      const angle = planet.speed * (performance.now() - startTime) * 0.001;
+      const planetX = planet.orbitRadius * Math.cos(angle);
+      const planetZ = planet.orbitRadius * Math.sin(angle);
+      
+      const planetPos = vec4.fromValues(planetX, 0, planetZ, 1);
+      vec4.transformMat4(planetPos, planetPos, currentViewMatrix);
+      vec4.transformMat4(planetPos, planetPos, projectionMatrix);
+      
+      const planetXNDC = planetPos[0] / planetPos[3];
+      const planetYNDC = planetPos[1] / planetPos[3];
+      
+      const distance = Math.sqrt(
+        Math.pow(glX - planetXNDC, 2) + 
+        Math.pow(glY - planetYNDC, 2)
+      );
 
-  if (clickedOnPlanet) {
-    isAltView = !isAltView;
-
-    if (isAltView && naziv_planeta.style.display === "none" && opis_planeta.style.display === "none") {
-      cameraPos = [-1, -1, 5];
-      naziv_planeta.style.display = "block";
-      opis_planeta.style.display = "block";
-    } else {
-      cameraPos = [2, 2, zoom];
-      naziv_planeta.style.display = "none";
-      opis_planeta.style.display = "none";
+      if (distance < 0.05) {
+        return planet;
+      }
     }
+    return null;
   }
-});
 
-  document.getElementById("zoomIn").addEventListener("click", () => {
-    zoom -= 0.5;
-    if (zoom < 1.5) zoom = 1.5;
-  });
-
-document.getElementById("zoomOut").addEventListener("click", () => {
-    zoom += 0.5;
-    if (zoom > 20) zoom = 20;
-  });
-
+  let startTime = performance.now();
+  if (loadingElement) loadingElement.style.display = 'none';
+  
   function render() {
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    const currentTime = performance.now();
+    const elapsedTime = (currentTime - startTime) * 0.001;
+    gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST);
 
-    // Kamera update
-    cameraPos[2] = zoom;
-    mat4.lookAt(viewMat, cameraPos, [0, 0, 0], [0, 1, 0]);
+    // Update view matrix based on follow mode
+    if (followPlanet && selectedPlanet) {
+        const planet = planets.find(p => p.name === selectedPlanet);
+        if (planet) {
+            const angle = planet.speed * elapsedTime;
+            const planetX = planet.orbitRadius * Math.cos(angle);
+            const planetZ = planet.orbitRadius * Math.sin(angle);
+            
+            // Calculate camera position with some offset
+            const camX = planetX + cameraOffset[0];
+            const camY = cameraOffset[1];
+            const camZ = planetZ + cameraOffset[2];
+            
+            mat4.lookAt(
+                currentViewMatrix,
+                [camX, camY, camZ],
+                [planetX, 0, planetZ],
+                [0, 1, 0]
+            );
+        }
+    } else {
+        // Default orbiting view
+        mat4.copy(currentViewMatrix, viewMatrix);
+        mat4.translate(currentViewMatrix, currentViewMatrix, [0, 0, -distance]);
+        mat4.rotateX(currentViewMatrix, currentViewMatrix, angleX);
+        mat4.rotateY(currentViewMatrix, currentViewMatrix, angleY);
+    }
 
-    WebGLUtils.setUniformMatrix4fv(gl, program, ["u_view"], [viewMat]);
-    WebGLUtils.setUniform3f(gl, program, ["u_view_direction"], [cameraPos]);
+    // Set matrices
+    gl.uniformMatrix4fv(u_view, false, currentViewMatrix);
+    gl.uniformMatrix4fv(u_projection, false, projectionMatrix);
 
-    // Rotacija modela
-    mat4.identity(modelMat);
-    mat4.rotateX(modelMat, modelMat, rotationX);
-    mat4.rotateY(modelMat, modelMat, rotationY);
-    WebGLUtils.setUniformMatrix4fv(gl, program, ["u_model"], [modelMat]);
-
-    gl.useProgram(program);
-    gl.bindVertexArray(VAO);
+    // Draw Sun
+    gl.bindVertexArray(sunVAO);
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 8);
+    gl.bindTexture(gl.TEXTURE_2D, sunTexture);
+    gl.uniform1i(u_sampler, 0);
+    gl.uniform4fv(u_color, [1, 1, 1, 1]);
+    
+    const sunModel = mat4.create();
+    mat4.rotateY(sunModel, sunModel, elapsedTime * 0.5);
+    mat4.scale(sunModel, sunModel, [1.6, 1.6, 1.6]);
+    gl.uniformMatrix4fv(u_model, false, sunModel);
+    gl.drawElements(gl.TRIANGLES, sunGeometry.indices.length, gl.UNSIGNED_SHORT, 0);
+
+    // Draw Orbits
+    gl.bindVertexArray(orbitVAO);
+    gl.disable(gl.DEPTH_TEST);
+    planets.forEach(planet => {
+        gl.bindBuffer(gl.ARRAY_BUFFER, orbitVBO);
+        gl.bufferData(gl.ARRAY_BUFFER, orbitData[planet.name], gl.STATIC_DRAW);
+        gl.uniform4fv(u_color, planet.orbitColor);
+        gl.uniformMatrix4fv(u_model, false, mat4.create());
+        gl.drawArrays(gl.LINE_STRIP, 0, orbitData[planet.name].length / 3);
+    });
+    gl.enable(gl.DEPTH_TEST);
+
+    // Draw Planets
+    gl.bindVertexArray(planetVAO);
+    planets.forEach((planet, i) => {
+        const angle = planet.speed * elapsedTime;
+        const x = planet.orbitRadius * Math.cos(angle);
+        const z = planet.orbitRadius * Math.sin(angle);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, planetTextures[i]);
+        gl.uniform1i(u_sampler, 0);
+        gl.uniform4fv(u_color, [...planet.color, 1]);
+        gl.uniform1i(u_selected, planet.name === selectedPlanet ? 1 : 0);
+
+        const planetModel = mat4.create();
+        mat4.translate(planetModel, planetModel, [x, 0, z]);
+        mat4.rotateY(planetModel, planetModel, elapsedTime * 2); // Add planet rotation
+        mat4.scale(planetModel, planetModel, [planet.radius, planet.radius, planet.radius]);
+        gl.uniformMatrix4fv(u_model, false, planetModel);
+
+        gl.drawElements(gl.TRIANGLES, planetGeometry.indices.length, gl.UNSIGNED_SHORT, 0);
+    });
 
     requestAnimationFrame(render);
   }
-
   render();
 }
 
