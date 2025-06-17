@@ -44,7 +44,7 @@ function createOrbit(radius, segments) {
 
 const planets = [
   {
-    name: "Merkur",
+    name: "Mercury",
     radius: 0.95,
     orbitRadius: 2.0,
     speed: 1.2,
@@ -53,7 +53,7 @@ const planets = [
     texture: "../textures/mercury.jpg"
   },
   {
-    name: "Venera",
+    name: "Venus",
     radius: 1.02,
     orbitRadius: 2.5,
     speed: 0.8,
@@ -62,7 +62,7 @@ const planets = [
     texture: "../textures/venus.jpg"
   },
   {
-    name: "Zemlja",
+    name: "Earth",
     radius: 1.05,
     orbitRadius: 3.3,
     speed: 0.6,
@@ -98,7 +98,7 @@ const planets = [
     texture: "../textures/saturnmap.jpg"
   },
   {
-    name: "Uran",
+    name: "Uranus",
     radius: 2.0,
     orbitRadius: 6.8,
     speed: 0.15,
@@ -107,7 +107,7 @@ const planets = [
     texture: "../textures/uranus.jpg"
   },
   {
-    name: "Neptun",
+    name: "Neptune",
     radius: 2.0,
     orbitRadius: 7.5,
     speed: 0.1,
@@ -116,6 +116,9 @@ const planets = [
     texture: "../textures/neptune.jpg"
   }
 ];
+
+
+let currentViewMatrix = mat4.create(); // ažuriraće se svaki frame
 
 
 async function main() {
@@ -150,12 +153,14 @@ async function main() {
   });
 
   function updatePlanetInfo(planet) {
-    if (!planetInfo) return;
-    planetInfo.innerHTML = `
+    const panel = document.getElementById("planet-info");
+    if (!panel) return;
+    panel.innerHTML = `
       <h3>${planet.name}</h3>
       <p>Orbit Radius: ${planet.orbitRadius} AU</p>
       <p>Orbital Speed: ${planet.speed}</p>
     `;
+    panel.style.display = 'block';
   }
 
   function resizeCanvas() {
@@ -280,17 +285,18 @@ async function main() {
 
   // Detekcija klika na planetu
   canvas.addEventListener('click', (e) => {
-    const planet = detectPlanetAtPosition(e.clientX, e.clientY);
-    if (planet) {
-      selectedPlanet = planet.name;
-      updatePlanetInfo(planet);
-    } else {
-      selectedPlanet = null;
-      if (planetInfo) {
-        planetInfo.innerHTML = '<h3>Solar System</h3><p>Kliknite na planetu</p>';
-      }
-    }
+  const mouseX = e.clientX;
+  const mouseY = e.clientY;
+  const planet = detectPlanetAtPosition(mouseX, mouseY); // koristiš već postojeću funkciju
+
+  if (planet) {
+    selectedPlanet = planet.name; // ovo će omogućiti označavanje u shaderu
+    updatePlanetInfo(planet);     // ovo prikazuje info panel
+  } else {
+      selectedPlanet = null;
+  }
   });
+
 
   function detectPlanetAtPosition(x, y) {
     const rect = canvas.getBoundingClientRect();
@@ -307,7 +313,7 @@ async function main() {
       const planetZ = planet.orbitRadius * Math.sin(angle);
       
       const planetPos = vec4.fromValues(planetX, 0, planetZ, 1);
-      vec4.transformMat4(planetPos, planetPos, viewMatrix);
+      vec4.transformMat4(planetPos, planetPos, currentViewMatrix);
       vec4.transformMat4(planetPos, planetPos, projectionMatrix);
       
       const planetXNDC = planetPos[0] / planetPos[3];
@@ -336,11 +342,12 @@ async function main() {
     gl.enable(gl.DEPTH_TEST);
 
     // Update view matrix
-    const view = mat4.clone(viewMatrix);
-    mat4.translate(view, view, [0, 0, -distance]);
-    mat4.rotateX(view, view, angleX);
-    mat4.rotateY(view, view, angleY);
-    gl.uniformMatrix4fv(u_view, false, view);
+    
+    mat4.copy(currentViewMatrix, viewMatrix);
+    mat4.translate(currentViewMatrix, currentViewMatrix, [0, 0, -distance]);
+    mat4.rotateX(currentViewMatrix, currentViewMatrix, angleX);
+    mat4.rotateY(currentViewMatrix, currentViewMatrix, angleY);
+    gl.uniformMatrix4fv(u_view, false, currentViewMatrix);
     gl.uniformMatrix4fv(u_projection, false, projectionMatrix);
 
     // Crtanje Sunca
