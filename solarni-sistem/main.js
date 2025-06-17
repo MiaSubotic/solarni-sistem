@@ -50,7 +50,10 @@ const planets = [
     speed: 1.2,
     color: [0.7, 0.5, 0.4],
     orbitColor: [0.7, 0.5, 0.4, 0.3],
-    texture: "../textures/mercury.jpg"
+    texture: "../textures/mercury.jpg",
+    revolutionPeriod: 88,
+    mass: 0.330,
+    volume: 6.08e10
   },
   {
     name: "Venus",
@@ -59,7 +62,10 @@ const planets = [
     speed: 0.8,
     color: [0.9, 0.7, 0.3],
     orbitColor: [0.9, 0.7, 0.3, 0.3],
-    texture: "../textures/venus.jpg"
+    texture: "../textures/venus.jpg",
+    revolutionPeriod: 225,
+    mass: 4.87,
+    volume: 9.28e11
   },
   {
     name: "Earth",
@@ -68,7 +74,10 @@ const planets = [
     speed: 0.6,
     color: [0.2, 0.4, 0.8],
     orbitColor: [0.2, 0.4, 0.8, 0.3],
-    texture: "../textures/earth.webp"
+    texture: "../textures/earth.webp",
+    revolutionPeriod: 365,
+    mass: 5.97,
+    volume: 1.08e12
   },
   {
     name: "Mars",
@@ -77,7 +86,10 @@ const planets = [
     speed: 0.45,
     color: [0.9, 0.2, 0.1],
     orbitColor: [0.9, 0.2, 0.1, 0.3],
-    texture: "../textures/mars.jpg"
+    texture: "../textures/mars.jpg",
+    revolutionPeriod: 687,
+    mass: 0.642,
+    volume: 1.63e11
   },
   {
     name: "Jupiter",
@@ -86,7 +98,10 @@ const planets = [
     speed: 0.3,
     color: [0.8, 0.6, 0.4],
     orbitColor: [0.8, 0.6, 0.4, 0.3],
-    texture: "../textures/jupitermap.jpg"
+    texture: "../textures/jupitermap.jpg",
+    revolutionPeriod: 4333,
+    mass: 1898,
+    volume: 1.43e15
   },
   {
     name: "Saturn",
@@ -95,7 +110,10 @@ const planets = [
     speed: 0.25,
     color: [0.9, 0.8, 0.5],
     orbitColor: [0.9, 0.8, 0.5, 0.3],
-    texture: "../textures/saturnmap.jpg"
+    texture: "../textures/saturnmap.jpg",
+    revolutionPeriod: 10759,
+    mass: 568,
+    volume: 8.27e14
   },
   {
     name: "Uranus",
@@ -104,7 +122,10 @@ const planets = [
     speed: 0.15,
     color: [0.6, 0.8, 0.9],
     orbitColor: [0.6, 0.8, 0.9, 0.3],
-    texture: "../textures/uranus.jpg"
+    texture: "../textures/uranus.jpg",
+    revolutionPeriod: 30687,
+    mass: 86.8,
+    volume: 6.83e13
   },
   {
     name: "Neptune",
@@ -113,7 +134,10 @@ const planets = [
     speed: 0.1,
     color: [0.2, 0.3, 0.9],
     orbitColor: [0.2, 0.3, 0.9, 0.3],
-    texture: "../textures/neptune.jpg"
+    texture: "../textures/neptune.jpg",
+    revolutionPeriod: 60190,
+    mass: 102,
+    volume: 6.25e13
   }
 ];
 
@@ -158,7 +182,10 @@ async function main() {
     panel.innerHTML = `
       <h3>${planet.name}</h3>
       <p>Orbit Radius: ${planet.orbitRadius} AU</p>
-      <p>Orbital Speed: ${planet.speed}</p>
+      <p>Orbital Speed: ${planet.speed} km/s</p>
+      <p>Revolution: ${planet.revolutionPeriod} days</p>
+      <p>Mass: ${planet.mass}x10^24 kg</p>
+      <p>Volume: ${planet.volume} km^3</p>
     `;
     panel.style.display = 'block';
   }
