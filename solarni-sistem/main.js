@@ -1,4 +1,4 @@
-import { mat4, vec4 } from "https://cdn.jsdelivr.net/npm/gl-matrix@3.4.0/+esm";
+import { mat4, vec3, vec4 } from "https://cdn.jsdelivr.net/npm/gl-matrix@3.4.0/+esm";
 import WebGLUtils from "../WebGLUtils.js";
 
 // Kreiranje sfere (proceduralno)
@@ -93,7 +93,7 @@ const planets = [
   },
   {
     name: "Jupiter",
-    radius: 1.2,
+    radius: 2.3,
     orbitRadius: 5.0,
     speed: 0.3,
     color: [0.8, 0.6, 0.4],
@@ -151,7 +151,7 @@ async function main() {
 
   const gl = canvas.getContext("webgl2", { antialias: true });
   if (!gl) throw new Error("WebGL2 nije podržan");
-
+  
   // UI Elementi
   const loadingElement = document.getElementById('loading');
   const zoomInBtn = document.getElementById('zoom-in');
@@ -315,7 +315,16 @@ async function main() {
   const mouseX = e.clientX;
   const mouseY = e.clientY;
   const planet = detectPlanetAtPosition(mouseX, mouseY); // koristiš već postojeću funkciju
-
+  const panel = document.getElementById("planet-info");
+  
+  if (planet) {
+    selectedPlanet = planet.name;
+    updatePlanetInfo(planet);
+  } else {
+    selectedPlanet = null;
+    panel.innerHTML = '<h3>Solar System</h3><p>Click on a planet to see more information</p>';
+    panel.style.display = 'block';
+  }
   if (planet) {
     selectedPlanet = planet.name; // ovo će omogućiti označavanje u shaderu
     updatePlanetInfo(planet);     // ovo prikazuje info panel
@@ -360,16 +369,21 @@ async function main() {
 
   let startTime = performance.now();
   if (loadingElement) loadingElement.style.display = 'none';
+  const u_is_planet = gl.getUniformLocation(program, "u_is_planet");
+  const u_is_sun = gl.getUniformLocation(program, "u_is_sun");
   
   function render() {
+    
     const currentTime = performance.now();
     const elapsedTime = (currentTime - startTime) * 0.001;
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    
+    // Postavke depth testa
     gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
 
     // Update view matrix
-    
     mat4.copy(currentViewMatrix, viewMatrix);
     mat4.translate(currentViewMatrix, currentViewMatrix, [0, 0, -distance]);
     mat4.rotateX(currentViewMatrix, currentViewMatrix, angleX);
@@ -377,7 +391,31 @@ async function main() {
     gl.uniformMatrix4fv(u_view, false, currentViewMatrix);
     gl.uniformMatrix4fv(u_projection, false, projectionMatrix);
 
-    // Crtanje Sunca
+    // 1. Crtanje orbita (sve)
+    gl.uniform1i(u_is_planet, 0);
+    gl.bindVertexArray(orbitVAO);
+    gl.disable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    for (let i = 0; i < planets.length; i++) {
+        const planet = planets[i];
+        gl.uniform4fv(u_color, planet.orbitColor);
+        gl.bindBuffer(gl.ARRAY_BUFFER, orbitVBO);
+        gl.bufferData(gl.ARRAY_BUFFER, orbitData[planet.name], gl.STATIC_DRAW);
+        gl.uniformMatrix4fv(u_model, false, mat4.create());
+        gl.drawArrays(gl.LINE_STRIP, 0, orbitData[planet.name].length / 3);
+    }
+
+    // 2. Crtanje Sunca (sa ispravnim depth testom)
+
+    gl.uniform1i(u_is_sun, 1);
+    console.log("After setting u_is_sun=1:", gl.getUniform(program, u_is_sun));
+    gl.uniform1i(u_is_planet, 0); 
+    gl.disable(gl.BLEND);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthMask(true); // Omogući upis u depth buffer
+    
     gl.bindVertexArray(sunVAO);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, sunTexture);
@@ -389,38 +427,74 @@ async function main() {
     mat4.scale(sunModel, sunModel, [1.6, 1.6, 1.6]);
     gl.uniformMatrix4fv(u_model, false, sunModel);
     gl.drawElements(gl.TRIANGLES, sunGeometry.indices.length, gl.UNSIGNED_SHORT, 0);
-
-    // Crtanje orbita
-    gl.bindVertexArray(orbitVAO);
+    gl.uniform1i(u_is_sun, 0);
+    
+    // 3. Crtanje orbita ispred Sunca (samo vidljivi delovi)
     gl.disable(gl.DEPTH_TEST);
-    planets.forEach(planet => {
-      gl.bindBuffer(gl.ARRAY_BUFFER, orbitVBO);
-      gl.bufferData(gl.ARRAY_BUFFER, orbitData[planet.name], gl.STATIC_DRAW);
-      gl.uniform4fv(u_color, planet.orbitColor);
-      gl.uniformMatrix4fv(u_model, false, mat4.create());
-      gl.drawArrays(gl.LINE_STRIP, 0, orbitData[planet.name].length / 3);
-    });
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    for (let i = 0; i < planets.length; i++) {
+        const planet = planets[i];
+        const angle = planet.speed * elapsedTime;
+        const planetX = planet.orbitRadius * Math.cos(angle);
+        const planetZ = planet.orbitRadius * Math.sin(angle);
+        
+        // Provera da li je orbita ispred Sunca
+        const camPos = [0, 0, distance];
+        const sunPos = [0, 0, 0];
+        const planetPos = [planetX, 0, planetZ];
+        
+        const toPlanet = vec3.subtract([], planetPos, sunPos);
+        const toCam = vec3.subtract([], camPos, sunPos);
+        const dot = vec3.dot(toPlanet, toCam);
+        
+        if (dot < 0) continue; // Preskoči orbite iza Sunca
+        
+        // Osvetli orbitu ako je planetа selektovana
+        const isSelectedOrbit = selectedPlanet === planet.name;
+        if (isSelectedOrbit) {
+            const highlightedColor = [
+                Math.min(planet.orbitColor[0] + 0.3, 1.0),
+                Math.min(planet.orbitColor[1] + 0.3, 1.0),
+                Math.min(planet.orbitColor[2] + 0.3, 1.0),
+                planet.orbitColor[3]
+            ];
+            gl.uniform4fv(u_color, highlightedColor);
+        } else {
+            gl.uniform4fv(u_color, planet.orbitColor);
+        }
+        
+        gl.bindBuffer(gl.ARRAY_BUFFER, orbitVBO);
+        gl.bufferData(gl.ARRAY_BUFFER, orbitData[planet.name], gl.STATIC_DRAW);
+        gl.uniformMatrix4fv(u_model, false, mat4.create());
+        gl.drawArrays(gl.LINE_STRIP, 0, orbitData[planet.name].length / 3);
+    }
+
+    // 4. Crtanje planeta
+    gl.uniform1i(u_is_planet, 1);
+    gl.disable(gl.BLEND);
     gl.enable(gl.DEPTH_TEST);
-
-    // Crtanje planeta
     gl.bindVertexArray(planetVAO);
+  
     planets.forEach((planet, i) => {
-      const angle = planet.speed * elapsedTime;
-      const x = planet.orbitRadius * Math.cos(angle);
-      const z = planet.orbitRadius * Math.sin(angle);
+        const angle = planet.speed * elapsedTime;
+        const x = planet.orbitRadius * Math.cos(angle);
+        const z = planet.orbitRadius * Math.sin(angle);
+        
+        gl.uniform1i(u_is_planet, 1);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, planetTextures[i]);
+        gl.uniform1i(u_sampler, 0);
+        gl.uniform4fv(u_color, [...planet.color, 1]);
+        gl.uniform1i(u_selected, planet.name === selectedPlanet ? 1 : 0);
 
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, planetTextures[i]);
-      gl.uniform1i(u_sampler, 0);
-      gl.uniform4fv(u_color, [...planet.color, 1]);
-      gl.uniform1i(u_selected, planet.name === selectedPlanet ? 1 : 0);
+        const planetModel = mat4.create();
+        mat4.translate(planetModel, planetModel, [x, 0, z]);
+        mat4.scale(planetModel, planetModel, [planet.radius, planet.radius, planet.radius]);
+        gl.uniformMatrix4fv(u_model, false, planetModel);
 
-      const planetModel = mat4.create();
-      mat4.translate(planetModel, planetModel, [x, 0, z]);
-      mat4.scale(planetModel, planetModel, [planet.radius, planet.radius, planet.radius]);
-      gl.uniformMatrix4fv(u_model, false, planetModel);
-
-      gl.drawElements(gl.TRIANGLES, planetGeometry.indices.length, gl.UNSIGNED_SHORT, 0);
+        gl.drawElements(gl.TRIANGLES, planetGeometry.indices.length, gl.UNSIGNED_SHORT, 0);
     });
 
     requestAnimationFrame(render);

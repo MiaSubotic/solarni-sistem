@@ -1,23 +1,37 @@
 #version 300 es
 precision highp float;
-
 in vec2 v_texcoord;
 uniform sampler2D u_sampler;
 uniform vec4 u_color;
 uniform int u_selected;
-
-out vec4 outColor;
+uniform int u_is_planet;
+uniform int u_is_sun;
+out vec4 fragColor;
 
 void main() {
-    outColor = texture(u_sampler, v_texcoord) * u_color;
-
-    if (u_selected == 1) {
-        // Neka svetli malo jače
-        outColor.rgb *= 1.5;
+    if (u_is_sun == 1) {
+        // Poseban tretman za sunce
+        fragColor = texture(u_sampler, v_texcoord);
+    } 
+    else if (u_is_planet == 1) {
+        // Za planete
+        fragColor = texture(u_sampler, v_texcoord) * u_color;
         
-        // Dodajte svetleći obrub
-        float edge = smoothstep(0.4, 0.5, 
-            max(abs(v_texcoord.x - 0.5), abs(v_texcoord.y - 0.5)));
-        outColor.rgb = mix(outColor.rgb, vec3(1.0), edge);
+        // Efekat selektovane planete
+        if (u_selected == 1) {
+            fragColor.rgb *= 1.5;
+            float edge = smoothstep(0.4, 0.5, 
+                max(abs(v_texcoord.x - 0.5), abs(v_texcoord.y - 0.5)));
+            fragColor.rgb = mix(fragColor.rgb, vec3(1.0), edge);
+        }
+    } 
+    else {
+        // Za orbite
+        fragColor = u_color;
+        
+        // Efekat selektovane orbite
+        if (u_selected == 1) {
+            fragColor.rgb *= 1.3;
+        }
     }
 }
